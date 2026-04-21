@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mermaid Pro Ultra | 4K Diagram Studio</title>
+    
+    <!-- Latest Mermaid v11 & html2canvas -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        :root {
+            --bg-deep: #020617;
+            --panel-bg: #0f172a;
+            --accent-glow: #6366f1;
+            --accent-border: #312e81;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --glass: rgba(15, 23, 42, 0.8);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Layout */
+        .main-wrapper {
+            display: flex;
+            flex: 1;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        @media (min-width: 1024px) {
+            .main-wrapper { flex-direction: row; }
+        }
+
+        /* Top Header */
+        header {
+            padding: 1rem 1.5rem;
+            background: rgba(2, 6, 23, 0.9);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid #1e293b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 50;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 800;
+            font-size: 1.2rem;
+            background: linear-gradient(to right, #a5b4fc, #e879f9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Editor Section */
+        .editor-pane {
+            width: 100%;
+            height: 350px;
+            background: var(--panel-bg);
+            border-right: 1px solid #1e293b;
+            display: flex;
+            flex-direction: column;
+            transition: width 0.3s ease;
+        }
+
+        @media (min-width: 1024px) {
+            .editor-pane { width: 450px; height: 100%; }
+        }
+
+        .pane-header {
+            padding: 0.75rem 1.25rem;
+            background: rgba(0,0,0,0.2);
+            border-bottom: 1px solid #1e293b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+        }
+
+        #code-editor {
+            flex: 1;
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: #7dd3fc;
+            padding: 1.25rem;
+            font-family: 'Fira Code', 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            resize: none;
+            outline: none;
+        }
+
+        /* Canvas Section */
+        .canvas-pane {
+            flex: 1;
+            background: #000;
+            position: relative;
+            overflow: hidden;
+            background-image: 
+                radial-gradient(circle at 2px 2px, #1e293b 1px, transparent 0);
+            background-size: 32px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* The "Artboard" - Fixed scale issues here */
+        #artboard {
+            padding: 40px;
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+            transition: transform 0.2s cubic-bezier(0.1, 0.7, 1.0, 0.1);
+            transform-origin: center center;
+            display: inline-block;
+            min-width: fit-content;
+        }
+
+        /* Controls */
+        .floating-tools {
+            position: absolute;
+            bottom: 2rem;
+            right: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            z-index: 40;
+        }
+
+        .tool-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: var(--glass);
+            border: 1px solid var(--accent-border);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            backdrop-filter: blur(10px);
+        }
+
+        .tool-btn:hover {
+            background: var(--accent-glow);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .action-bar {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid #1e293b;
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn-main {
+            flex: 1;
+            padding: 0.8rem;
+            border-radius: 10px;
+            border: none;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: 0.2s;
+        }
+
+        .btn-export { background: var(--accent-glow); color: white; }
+        .btn-export:hover { background: #4f46e5; }
+        
+        /* Toast */
+        #toast {
+            position: fixed;
+            top: 2rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: #10b981;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 1000;
+        }
+
+        #toast.active { transform: translateX(-50%) translateY(0); }
+
+        /* Error Box */
+        #error-overlay {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            display: none;
+            z-index: 60;
+        }
+
+        /* SVG fixes */
+        #mermaid-render svg {
+            max-width: 100% !important;
+            height: auto !important;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand">
+            <i data-lucide="layout"></i>
+            MERMAID PRO ULTRA
+        </div>
+        <div style="display:flex; gap: 10px; align-items:center;">
+            <div id="sync-status" style="font-size: 0.65rem; color: var(--text-secondary); display:flex; align-items:center; gap:5px;">
+                <span style="width:6px; height:6px; background:#10b981; border-radius:50%"></span>
+                READY
+            </div>
+        </div>
+    </header>
+
+    <div class="main-wrapper">
+        <!-- Editor -->
+        <div class="editor-pane">
+            <div class="pane-header">
+                <span>Diagram Engine v11.0</span>
+                <i data-lucide="terminal" size="14"></i>
+            </div>
+            
+            <textarea id="code-editor" spellcheck="false">flowchart TD
+    %% Global Styling
+    classDef default font-family:Inter, font-size:14px;
+
+    User((👤 Penumpang)) -->|Register| Reg[Pendaftaran Akun]
+    User -->|Login| Auth[Autentikasi]
+    
+    subgraph Core_Process [Sistem Pemesanan Tiket]
+        Auth --> Search[Cari Jadwal]
+        Search --> Book[Pesan Tiket]
+        Book --> Pay[Pembayaran]
+    end
+
+    Pay --> Bank((🏦 Bank))
+    Bank -->|Verifikasi| Pay
+    Pay --> Ticket[Cetak E-Ticket]
+
+    style Core_Process fill:f8fafc,stroke:#334155,stroke-dasharray: 5 5
+    style User fill:#6366f1,color:#fff
+    style Bank fill:#f59e0b,color:#fff
+    style Ticket fill:#10b981,color:#fff</textarea>
+
+            <div class="action-bar">
+                <button class="btn-main btn-export" onclick="downloadImage()">
+                    <i data-lucide="camera"></i>
+                    Export 4K PNG
+                </button>
+            </div>
+        </div>
+
+        <!-- Canvas -->
+        <div class="canvas-pane" id="zoom-container">
+            <div id="error-overlay"></div>
+
+            <div class="floating-tools">
+                <button class="tool-btn" onclick="zoom(0.1)" title="Zoom In">
+                    <i data-lucide="plus"></i>
+                </button>
+                <button class="tool-btn" onclick="zoom(-0.1)" title="Zoom Out">
+                    <i data-lucide="minus"></i>
+                </button>
+                <button class="tool-btn" onclick="resetZoom()" title="Reset View">
+                    <i data-lucide="maximize"></i>
+                </button>
+                <button class="tool-btn" onclick="toggleView()" title="Maximize Result">
+                    <i data-lucide="expand"></i>
+                </button>
+            </div>
+
+            <div id="artboard">
+                <div id="mermaid-render"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast">Diagram Exported Successfully!</div>
+
+    <script>
+        lucide.createIcons();
+        
+        let zoomLevel = 1.0;
+        let debounceTimer;
+
+        // Initialize Mermaid Latest
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: 'base',
+            themeVariables: {
+                primaryColor: '#6366f1',
+                primaryTextColor: '#fff',
+                lineColor: '#64748b',
+                fontSize: '14px',
+                fontFamily: 'Inter'
+            },
+            flowchart: { 
+                useMaxWidth: false,
+                htmlLabels: true,
+                curve: 'basis'
+            }
+        });
+
+        const editor = document.getElementById('code-editor');
+        const renderTarget = document.getElementById('mermaid-render');
+        const errorOverlay = document.getElementById('error-overlay');
+        const status = document.getElementById('sync-status');
+        const artboard = document.getElementById('artboard');
+
+        // Core Render Function
+        async function render() {
+            const code = editor.value.trim();
+            if(!code) return;
+
+            status.innerHTML = '<span style="width:6px; height:6px; background:#f59e0b; border-radius:50%"></span> RENDERING...';
+
+            try {
+                // Clear previous
+                renderTarget.innerHTML = "";
+                const id = 'graph-' + Math.floor(Math.random() * 10000);
+                
+                const { svg } = await mermaid.render(id, code);
+                renderTarget.innerHTML = svg;
+                
+                errorOverlay.style.display = 'none';
+                status.innerHTML = '<span style="width:6px; height:6px; background:#10b981; border-radius:50%"></span> SYNCED';
+            } catch (err) {
+                console.error(err);
+                errorOverlay.innerText = "Syntax Error Detected";
+                errorOverlay.style.display = 'block';
+                status.innerHTML = '<span style="width:6px; height:6px; background:#ef4444; border-radius:50%"></span> ERROR';
+            }
+        }
+
+        // Auto-Render with Debounce
+        editor.addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(render, 500);
+        });
+
+        // Zoom Functions
+        function zoom(delta) {
+            zoomLevel = Math.max(0.1, Math.min(3, zoomLevel + delta));
+            artboard.style.transform = `scale(${zoomLevel})`;
+        }
+
+        function resetZoom() {
+            zoomLevel = 1.0;
+            artboard.style.transform = `scale(1)`;
+        }
+
+        function toggleView() {
+            // Simple full screen of the artboard
+            if (artboard.style.position === 'fixed') {
+                artboard.style.position = 'static';
+                artboard.style.zIndex = '1';
+            } else {
+                artboard.style.position = 'fixed';
+                artboard.style.zIndex = '1000';
+                artboard.style.top = '50%';
+                artboard.style.left = '50%';
+                artboard.style.transform = `translate(-50%, -50%) scale(${zoomLevel})`;
+            }
+        }
+
+        // HIGH QUALITY EXPORT (4K Logic)
+        async function downloadImage() {
+            const btn = document.querySelector('.btn-export');
+            const originalText = btn.innerHTML;
+            
+            btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i> Processing 4K...';
+            lucide.createIcons();
+
+            // Prepare artboard for export (remove zoom, ensure full size)
+            const oldTransform = artboard.style.transform;
+            artboard.style.transform = 'scale(1)';
+
+            try {
+                const canvas = await html2canvas(artboard, {
+                    backgroundColor: "#ffffff",
+                    scale: 4, // 4x scale for ultra high resolution
+                    useCORS: true,
+                    logging: false,
+                    allowTaint: true
+                });
+
+                const link = document.createElement("a");
+                link.download = `mermaid-ultra-${Date.now()}.png`;
+                link.href = canvas.toDataURL("image/png", 1.0);
+                link.click();
+
+                showToast();
+            } catch (e) {
+                console.error("Export failed", e);
+            } finally {
+                btn.innerHTML = originalText;
+                lucide.createIcons();
+                artboard.style.transform = oldTransform;
+            }
+        }
+
+        function showToast() {
+            const t = document.getElementById('toast');
+            t.classList.add('active');
+            setTimeout(() => t.classList.remove('active'), 3000);
+        }
+
+        // Pan Logic (Drag to move)
+        let isDragging = false;
+        let startX, startY, scrollLeft, scrollTop;
+        const container = document.getElementById('zoom-container');
+
+        container.addEventListener('mousedown', (e) => {
+            if (e.target !== container && e.target !== artboard) return;
+            isDragging = true;
+            container.style.cursor = 'grabbing';
+            startX = e.pageX - container.offsetLeft;
+            startY = e.pageY - container.offsetTop;
+            scrollLeft = container.scrollLeft;
+            scrollTop = container.scrollTop;
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+            container.style.cursor = 'default';
+        });
+
+        container.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            e.preventDefault();
+            const x = e.pageX - container.offsetLeft;
+            const y = e.pageY - container.offsetTop;
+            const walkX = (x - startX) * 2;
+            const walkY = (y - startY) * 2;
+            container.scrollLeft = scrollLeft - walkX;
+            container.scrollTop = scrollTop - walkY;
+        });
+
+        // Initial Render
+        window.onload = render;
+
+    </script>
+</body>
+</html>
